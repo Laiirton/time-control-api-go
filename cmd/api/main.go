@@ -23,11 +23,17 @@ func main() {
 
 	log.Println("Conectado ao banco de dados com sucesso")
 
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	routes.Setup(r, db, cfg.JWTSecret)
 
 	log.Printf("Servidor rodando na porta %s", cfg.APIPort)
-	if err := r.Run(":" + cfg.APIPort); err != nil {
+	if err := r.Run("0.0.0.0:" + cfg.APIPort); err != nil {
 		log.Fatal("Erro ao iniciar servidor: ", err)
 	}
 }
