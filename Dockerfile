@@ -1,5 +1,7 @@
 FROM golang:1.24-alpine AS builder
 
+ENV GOTOOLCHAIN=auto
+
 RUN apk --no-cache add git
 
 WORKDIR /app
