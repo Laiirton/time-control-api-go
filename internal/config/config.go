@@ -23,8 +23,13 @@ func Load() (*Config, error) {
 		port = "8080"
 	}
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = os.Getenv("DB_URL")
+	}
+
 	cfg := &Config{
-		DBURL:     os.Getenv("DB_URL"),
+		DBURL:     dbURL,
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		APIPort:   port,
 	}
