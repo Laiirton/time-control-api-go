@@ -23,6 +23,11 @@ func main() {
 
 	log.Println("Conectado ao banco de dados com sucesso")
 
+	if err := database.RunMigrations(db); err != nil {
+		log.Fatal("Erro ao executar migrações do banco de dados: ", err)
+	}
+	log.Println("Migrações do banco de dados executadas com sucesso")
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
