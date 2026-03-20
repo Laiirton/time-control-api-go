@@ -51,7 +51,7 @@ func (h *TimeRecordHandler) Clock(c *gin.Context) {
 		return
 	}
 
-	fileHeader, err := c.FormFile("foto")
+	fileHeader, err := c.FormFile("photo")
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "foto é obrigatória"})
 		return
