@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ type TimeRecordHandler struct {
 	repo    *repository.TimeRecordRepository
 	storage *storage.SupabaseStorage
 }
+
+const defaultSignedPhotoURLTTLSeconds = 7 * 24 * 60 * 60
 
 func NewTimeRecordHandler(repo *repository.TimeRecordRepository, storage *storage.SupabaseStorage) *TimeRecordHandler {
 	return &TimeRecordHandler{repo: repo, storage: storage}
@@ -74,6 +77,8 @@ func (h *TimeRecordHandler) Clock(c *gin.Context) {
 		return
 	}
 
+	h.attachSignedPhotoURL(c.Request.Context(), record)
+
 	c.JSON(http.StatusCreated, record)
 }
 
@@ -95,6 +100,8 @@ func (h *TimeRecordHandler) Me(c *gin.Context) {
 		return
 	}
 
+	h.attachSignedPhotoURLs(c.Request.Context(), records)
+
 	c.JSON(http.StatusOK, models.TimeRecordListResponse{
 		Data:  records,
 		Total: total,
@@ -111,6 +118,8 @@ func (h *TimeRecordHandler) MeToday(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos de hoje"})
 		return
 	}
+
+	h.attachSignedPhotoURLs(c.Request.Context(), records)
 
 	c.JSON(http.StatusOK, models.TimeRecordTodayResponse{
 		Data: records,
@@ -133,6 +142,8 @@ func (h *TimeRecordHandler) List(c *gin.Context) {
 		return
 	}
 
+	h.attachSignedPhotoURLs(c.Request.Context(), records)
+
 	c.JSON(http.StatusOK, models.TimeRecordListResponse{
 		Data:  records,
 		Total: total,
@@ -150,4 +161,23 @@ func parseCoordinate(value string, min, max float64) (float64, error) {
 		return 0, strconv.ErrRange
 	}
 	return parsed, nil
+}
+
+func (h *TimeRecordHandler) attachSignedPhotoURLs(ctx context.Context, records []models.TimeRecord) {
+	for i := range records {
+		h.attachSignedPhotoURL(ctx, &records[i])
+	}
+}
+
+func (h *TimeRecordHandler) attachSignedPhotoURL(ctx context.Context, record *models.TimeRecord) {
+	if record == nil || strings.TrimSpace(record.PhotoPath) == "" {
+		return
+	}
+
+	signedURL, err := h.storage.GenerateSignedPhotoURL(ctx, record.PhotoPath, defaultSignedPhotoURLTTLSeconds)
+	if err != nil {
+		return
+	}
+
+	record.PhotoURL = signedURL
 }
