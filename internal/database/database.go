@@ -21,7 +21,7 @@ var migrationsFS embed.FS
 
 func Connect(dbURL string) (*sql.DB, error) {
 	if strings.TrimSpace(dbURL) == "" {
-		return nil, fmt.Errorf("DATABASE_URL/DB_URL não informado")
+		return nil, fmt.Errorf("URL do banco não informada (use DATABASE_URL_POOLER/DB_URL_POOLER, DATABASE_URL_IPV4/DB_URL_IPV4, DATABASE_URL ou DB_URL)")
 	}
 
 	dbURL, err := ensureSSLMode(dbURL)
@@ -31,7 +31,7 @@ func Connect(dbURL string) (*sql.DB, error) {
 
 	dbURL, err = ensureIPv4HostAddr(dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao preparar conexão IPv4 do banco: %w", err)
+		return nil, fmt.Errorf("erro ao preparar conexão do banco: %w", err)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -59,6 +59,10 @@ func Connect(dbURL string) (*sql.DB, error) {
 	}
 
 	_ = db.Close()
+	if isSupabaseDirectHost(dbURL) && strings.Contains(strings.ToLower(err.Error()), "network is unreachable") {
+		return nil, fmt.Errorf("erro ao conectar ao banco após múltiplas tentativas: %w. O host direto do Supabase pode exigir IPv6; no Render use a URL de pooler IPv4 em DATABASE_URL_POOLER", err)
+	}
+
 	return nil, fmt.Errorf("erro ao conectar ao banco após múltiplas tentativas: %w", err)
 }
 
@@ -95,14 +99,14 @@ func ensureIPv4HostAddr(dbURL string) (string, error) {
 
 	if parsedIP := net.ParseIP(hostname); parsedIP != nil {
 		if parsedIP.To4() == nil {
-			return "", fmt.Errorf("host configurado apenas com IPv6: %s", hostname)
+			return parsedURL.String(), nil
 		}
 		return parsedURL.String(), nil
 	}
 
 	ips, err := net.LookupIP(hostname)
 	if err != nil {
-		return "", err
+		return parsedURL.String(), nil
 	}
 
 	for _, ip := range ips {
@@ -113,7 +117,17 @@ func ensureIPv4HostAddr(dbURL string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("nenhum IPv4 encontrado para o host %s", hostname)
+	return parsedURL.String(), nil
+}
+
+func isSupabaseDirectHost(dbURL string) bool {
+	parsedURL, err := url.Parse(dbURL)
+	if err != nil {
+		return false
+	}
+
+	hostname := strings.ToLower(parsedURL.Hostname())
+	return strings.HasPrefix(hostname, "db.") && strings.HasSuffix(hostname, ".supabase.co")
 }
 
 func RunMigrations(db *sql.DB) error {

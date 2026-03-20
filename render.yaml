@@ -8,6 +8,8 @@ services:
     envVars:
       - key: GO_VERSION
         value: 1.25.0
+      - key: DATABASE_URL_POOLER
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: DB_URL
