@@ -23,14 +23,7 @@ func Load() (*Config, error) {
 		port = "8080"
 	}
 
-	dbURL := firstNonEmpty(
-		os.Getenv("DATABASE_URL_POOLER"),
-		os.Getenv("DB_URL_POOLER"),
-		os.Getenv("DATABASE_URL_IPV4"),
-		os.Getenv("DB_URL_IPV4"),
-		os.Getenv("DATABASE_URL"),
-		os.Getenv("DB_URL"),
-	)
+	dbURL := os.Getenv("DATABASE_URL_POOLER")
 
 	cfg := &Config{
 		DBURL:     dbURL,
@@ -39,14 +32,4 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-
-	return ""
 }
