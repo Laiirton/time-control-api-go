@@ -37,7 +37,6 @@ func Connect(dbURL string) (*sql.DB, error) {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	// Retry curto para reduzir falhas transitórias no boot do Render.
 	for attempt := 1; attempt <= 10; attempt++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err = db.PingContext(ctx)
@@ -91,9 +90,6 @@ func RunMigrations(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("could not create migrate instance: %w", err)
 	}
-	defer func() {
-		_, _ = m.Close()
-	}()
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("could not run up migrations: %w", err)
