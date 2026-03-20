@@ -6,6 +6,10 @@ services:
     buildCommand: go build -ldflags="-s -w" -o api ./cmd/api
     startCommand: ./api
     envVars:
+      - key: GO_VERSION
+        value: 1.25.0
+      - key: DATABASE_URL
+        sync: false
       - key: DB_URL
         sync: false
       - key: JWT_SECRET
