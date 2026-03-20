@@ -35,7 +35,7 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	routes.Setup(r, db, cfg.JWTSecret)
+	routes.Setup(r, db, cfg)
 
 	log.Printf("Servidor rodando na porta %s", cfg.APIPort)
 	if err := r.Run("0.0.0.0:" + cfg.APIPort); err != nil {
