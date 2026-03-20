@@ -32,7 +32,7 @@ func (h *UserHandler) List(c *gin.Context) {
 
 	users, total, err := h.repo.FindAll(page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar usuários"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
 		return
 	}
 
@@ -47,17 +47,17 @@ func (h *UserHandler) List(c *gin.Context) {
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id inválido"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
 	user, err := h.repo.FindByID(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro interno"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 func (h *UserHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id inválido"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if req.Password != nil {
 		hashed, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao processar senha"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process password"})
 			return
 		}
 		hashedStr := string(hashed)
@@ -90,10 +90,10 @@ func (h *UserHandler) Update(c *gin.Context) {
 	user, err := h.repo.Update(id, &req)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao atualizar usuário"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 		return
 	}
 
@@ -103,18 +103,18 @@ func (h *UserHandler) Update(c *gin.Context) {
 func (h *UserHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id inválido"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
 	if err := h.repo.Delete(id); err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao deletar usuário"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "usuário deletado com sucesso"})
+	c.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
 }

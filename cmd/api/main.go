@@ -12,21 +12,21 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Erro ao carregar configuração: ", err)
+		log.Fatal("Failed to load configuration: ", err)
 	}
 
 	db, err := database.Connect(cfg.DBURL)
 	if err != nil {
-		log.Fatal("Erro ao conectar ao banco de dados: ", err)
+		log.Fatal("Failed to connect to database: ", err)
 	}
 	defer db.Close()
 
-	log.Println("Conectado ao banco de dados com sucesso")
+	log.Println("Successfully connected to database")
 
 	if err := database.RunMigrations(db); err != nil {
-		log.Fatal("Erro ao executar migrações do banco de dados: ", err)
+		log.Fatal("Failed to run database migrations: ", err)
 	}
-	log.Println("Migrações do banco de dados executadas com sucesso")
+	log.Println("Database migrations executed successfully")
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -37,8 +37,8 @@ func main() {
 
 	routes.Setup(r, db, cfg)
 
-	log.Printf("Servidor rodando na porta %s", cfg.APIPort)
+	log.Printf("Server running on port %s", cfg.APIPort)
 	if err := r.Run("0.0.0.0:" + cfg.APIPort); err != nil {
-		log.Fatal("Erro ao iniciar servidor: ", err)
+		log.Fatal("Failed to start server: ", err)
 	}
 }

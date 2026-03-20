@@ -31,29 +31,29 @@ func (h *TimeRecordHandler) Clock(c *gin.Context) {
 		eventType = strings.TrimSpace(c.PostForm("event"))
 	}
 	if eventType == "" {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "event_type é obrigatório"})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "event_type is required"})
 		return
 	}
 	if len(eventType) > 100 {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "event_type deve ter no máximo 100 caracteres"})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "event_type must be at most 100 characters"})
 		return
 	}
 
 	latitude, err := parseCoordinate(c.PostForm("latitude"), -90, 90)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "latitude inválida"})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid latitude"})
 		return
 	}
 
 	longitude, err := parseCoordinate(c.PostForm("longitude"), -180, 180)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "longitude inválida"})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid longitude"})
 		return
 	}
 
 	fileHeader, err := c.FormFile("foto")
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "foto é obrigatória"})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "photo is required"})
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *TimeRecordHandler) Clock(c *gin.Context) {
 	}
 
 	if err := h.repo.Create(record); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao registrar ponto"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clock in"})
 		return
 	}
 
@@ -96,7 +96,7 @@ func (h *TimeRecordHandler) Me(c *gin.Context) {
 
 	records, total, err := h.repo.FindByUser(userID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch time records"})
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h *TimeRecordHandler) MeToday(c *gin.Context) {
 
 	records, err := h.repo.FindByUserAndDate(userID, time.Now().UTC())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos de hoje"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch today's time records"})
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *TimeRecordHandler) List(c *gin.Context) {
 
 	records, total, err := h.repo.FindAll(page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch time records"})
 		return
 	}
 
