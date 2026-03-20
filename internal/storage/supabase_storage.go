@@ -107,8 +107,72 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 		return "", "", fmt.Errorf("falha ao salvar foto no storage (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
-	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.baseURL, s.bucket, objectPath)
-	return objectPath, publicURL, nil
+	objectURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, s.bucket, objectPath)
+	return objectPath, objectURL, nil
+}
+
+func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath string, expiresInSeconds int) (string, error) {
+	objectPath = strings.TrimSpace(objectPath)
+	if objectPath == "" {
+		return "", fmt.Errorf("caminho do arquivo não informado")
+	}
+
+	if strings.TrimSpace(s.baseURL) == "" || strings.TrimSpace(s.serviceRoleKey) == "" || strings.TrimSpace(s.bucket) == "" {
+		return "", fmt.Errorf("configuração do Supabase Storage incompleta")
+	}
+
+	if expiresInSeconds <= 0 {
+		expiresInSeconds = 3600
+	}
+
+	payload, err := json.Marshal(map[string]int{"expiresIn": expiresInSeconds})
+	if err != nil {
+		return "", fmt.Errorf("erro ao montar payload de assinatura: %w", err)
+	}
+
+	signURL := fmt.Sprintf("%s/storage/v1/object/sign/%s/%s", s.baseURL, s.bucket, objectPath)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, signURL, bytes.NewReader(payload))
+	if err != nil {
+		return "", fmt.Errorf("erro ao criar requisição de assinatura: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
+	req.Header.Set("apikey", s.serviceRoleKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("erro ao gerar URL assinada: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("falha ao gerar URL assinada (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+
+	var signResp struct {
+		SignedURL  string `json:"signedURL"`
+		SignedURL2 string `json:"signedUrl"`
+		Path       string `json:"path"`
+		Token      string `json:"token"`
+	}
+	if err := json.Unmarshal(respBody, &signResp); err != nil {
+		return "", fmt.Errorf("resposta inválida ao gerar URL assinada: %w", err)
+	}
+
+	if signed := strings.TrimSpace(signResp.SignedURL); signed != "" {
+		return s.resolveSignedPath(signed), nil
+	}
+
+	if signed := strings.TrimSpace(signResp.SignedURL2); signed != "" {
+		return s.resolveSignedPath(signed), nil
+	}
+
+	if strings.TrimSpace(signResp.Path) != "" && strings.TrimSpace(signResp.Token) != "" {
+		return fmt.Sprintf("%s/storage/v1/object/sign/%s/%s?token=%s", s.baseURL, s.bucket, objectPath, signResp.Token), nil
+	}
+
+	return "", fmt.Errorf("resposta sem URL assinada")
 }
 
 func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
@@ -139,7 +203,7 @@ func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
 	createBody, err := json.Marshal(map[string]interface{}{
 		"id":     s.bucket,
 		"name":   s.bucket,
-		"public": true,
+		"public": false,
 	})
 	if err != nil {
 		return fmt.Errorf("erro ao montar payload para criação do bucket: %w", err)
@@ -185,4 +249,37 @@ func normalizeContentType(contentType string) string {
 		contentType = strings.TrimSpace(contentType[:idx])
 	}
 	return contentType
+}
+
+func (s *SupabaseStorage) resolveSignedPath(signedPath string) string {
+	signedPath = strings.TrimSpace(signedPath)
+	if signedPath == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(signedPath, "http://") || strings.HasPrefix(signedPath, "https://") {
+		return signedPath
+	}
+
+	if strings.HasPrefix(signedPath, "/storage/v1/") {
+		return s.baseURL + signedPath
+	}
+
+	if strings.HasPrefix(signedPath, "storage/v1/") {
+		return s.baseURL + "/" + signedPath
+	}
+
+	if strings.HasPrefix(signedPath, "/object/") {
+		return s.baseURL + "/storage/v1" + signedPath
+	}
+
+	if strings.HasPrefix(signedPath, "object/") {
+		return s.baseURL + "/storage/v1/" + signedPath
+	}
+
+	if strings.HasPrefix(signedPath, "/") {
+		return s.baseURL + signedPath
+	}
+
+	return s.baseURL + "/" + signedPath
 }
