@@ -53,17 +53,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.repo.Create(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao criar usuário"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "erro ao criar usuário",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	token, err := h.generateToken(user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao gerar token"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, models.AuthResponse{Token: token, User: *user})
+	c.JSON(http.StatusCreated, gin.H{"message": "usuário criado com sucesso"})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -94,7 +91,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.AuthResponse{Token: token, User: *user})
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
