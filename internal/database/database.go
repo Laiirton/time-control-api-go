@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -26,6 +27,11 @@ func Connect(dbURL string) (*sql.DB, error) {
 	dbURL, err := ensureSSLMode(dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao normalizar URL do banco: %w", err)
+	}
+
+	dbURL, err = ensureIPv4HostAddr(dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao preparar conexão IPv4 do banco: %w", err)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -69,6 +75,45 @@ func ensureSSLMode(dbURL string) (string, error) {
 	}
 
 	return parsedURL.String(), nil
+}
+
+func ensureIPv4HostAddr(dbURL string) (string, error) {
+	parsedURL, err := url.Parse(dbURL)
+	if err != nil {
+		return "", err
+	}
+
+	query := parsedURL.Query()
+	if query.Get("hostaddr") != "" {
+		return parsedURL.String(), nil
+	}
+
+	hostname := parsedURL.Hostname()
+	if strings.TrimSpace(hostname) == "" {
+		return parsedURL.String(), nil
+	}
+
+	if parsedIP := net.ParseIP(hostname); parsedIP != nil {
+		if parsedIP.To4() == nil {
+			return "", fmt.Errorf("host configurado apenas com IPv6: %s", hostname)
+		}
+		return parsedURL.String(), nil
+	}
+
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		return "", err
+	}
+
+	for _, ip := range ips {
+		if ip4 := ip.To4(); ip4 != nil {
+			query.Set("hostaddr", ip4.String())
+			parsedURL.RawQuery = query.Encode()
+			return parsedURL.String(), nil
+		}
+	}
+
+	return "", fmt.Errorf("nenhum IPv4 encontrado para o host %s", hostname)
 }
 
 func RunMigrations(db *sql.DB) error {
