@@ -85,16 +85,7 @@ func (h *TimeRecordHandler) Clock(c *gin.Context) {
 func (h *TimeRecordHandler) Me(c *gin.Context) {
 	userID := c.GetInt64("user_id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "15"))
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 15
-	}
-
-	records, total, err := h.repo.FindByUser(userID, page, limit)
+	records, err := h.repo.FindByUser(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos"})
 		return
@@ -102,12 +93,7 @@ func (h *TimeRecordHandler) Me(c *gin.Context) {
 
 	h.attachSignedPhotoURLs(c.Request.Context(), records)
 
-	c.JSON(http.StatusOK, models.TimeRecordListResponse{
-		Data:  records,
-		Total: total,
-		Page:  page,
-		Limit: limit,
-	})
+	c.JSON(http.StatusOK, records)
 }
 
 func (h *TimeRecordHandler) MeToday(c *gin.Context) {
@@ -121,22 +107,11 @@ func (h *TimeRecordHandler) MeToday(c *gin.Context) {
 
 	h.attachSignedPhotoURLs(c.Request.Context(), records)
 
-	c.JSON(http.StatusOK, models.TimeRecordTodayResponse{
-		Data: records,
-	})
+	c.JSON(http.StatusOK, records)
 }
 
 func (h *TimeRecordHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "15"))
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 15
-	}
-
-	records, total, err := h.repo.FindAll(page, limit)
+	records, err := h.repo.FindAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos"})
 		return
@@ -144,12 +119,7 @@ func (h *TimeRecordHandler) List(c *gin.Context) {
 
 	h.attachSignedPhotoURLs(c.Request.Context(), records)
 
-	c.JSON(http.StatusOK, models.TimeRecordListResponse{
-		Data:  records,
-		Total: total,
-		Page:  page,
-		Limit: limit,
-	})
+	c.JSON(http.StatusOK, records)
 }
 
 func parseCoordinate(value string, min, max float64) (float64, error) {
