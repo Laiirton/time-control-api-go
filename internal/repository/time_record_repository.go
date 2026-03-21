@@ -95,24 +95,17 @@ func (r *TimeRecordRepository) FindByUserAndDate(userID int64, date time.Time) (
 	return records, nil
 }
 
-func (r *TimeRecordRepository) FindByUser(userID int64, page, limit int) ([]models.TimeRecord, int, error) {
-	var total int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM time_records WHERE user_id = $1", userID).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * limit
+func (r *TimeRecordRepository) FindByUser(userID int64) ([]models.TimeRecord, error) {
 	query := `
 		SELECT id, user_id, event_type, latitude, longitude, photo_path, photo_url, recorded_at, created_at
 		FROM time_records
 		WHERE user_id = $1
 		ORDER BY recorded_at DESC, id DESC
-		LIMIT $2 OFFSET $3`
+	`
 
-	rows, err := r.db.Query(query, userID, limit, offset)
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -130,35 +123,28 @@ func (r *TimeRecordRepository) FindByUser(userID int64, page, limit int) ([]mode
 			&item.RecordedAt,
 			&item.CreatedAt,
 		); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		records = append(records, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return records, total, nil
+	return records, nil
 }
 
-func (r *TimeRecordRepository) FindAll(page, limit int) ([]models.TimeRecord, int, error) {
-	var total int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM time_records").Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * limit
+func (r *TimeRecordRepository) FindAll() ([]models.TimeRecord, error) {
 	query := `
 		SELECT id, user_id, event_type, latitude, longitude, photo_path, photo_url, recorded_at, created_at
 		FROM time_records
 		ORDER BY recorded_at DESC, id DESC
-		LIMIT $1 OFFSET $2`
+	`
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := r.db.Query(query)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -176,14 +162,14 @@ func (r *TimeRecordRepository) FindAll(page, limit int) ([]models.TimeRecord, in
 			&item.RecordedAt,
 			&item.CreatedAt,
 		); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		records = append(records, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return records, total, nil
+	return records, nil
 }
