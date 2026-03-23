@@ -22,5 +22,8 @@ type TimeRecordListResponse struct {
 }
 
 type TimeRecordTodayResponse struct {
-	Data []TimeRecord `json:"data"`
+	Data          []TimeRecord `json:"data"`
+	WorkedHours   float64      `json:"worked_hours"`
+	ExpectedHours float64      `json:"expected_hours"`
+	NextEventType string       `json:"next_event_type"`
 }
