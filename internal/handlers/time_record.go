@@ -98,8 +98,9 @@ func (h *TimeRecordHandler) Me(c *gin.Context) {
 
 func (h *TimeRecordHandler) MeToday(c *gin.Context) {
 	userID := c.GetInt64("user_id")
+	now := time.Now().UTC()
 
-	records, err := h.repo.FindByUserAndDate(userID, time.Now().UTC())
+	records, err := h.repo.FindByUserAndDate(userID, now)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar pontos de hoje"})
 		return
@@ -107,7 +108,14 @@ func (h *TimeRecordHandler) MeToday(c *gin.Context) {
 
 	h.attachSignedPhotoURLs(c.Request.Context(), records)
 
-	c.JSON(http.StatusOK, records)
+	response := models.TimeRecordTodayResponse{
+		Data:          records,
+		WorkedHours:   durationToHours(calculateWorkedDuration(records, now)),
+		ExpectedHours: durationToHours(expectedWorkDuration(now)),
+		NextEventType: nextEventType(records),
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TimeRecordHandler) List(c *gin.Context) {
@@ -150,4 +158,93 @@ func (h *TimeRecordHandler) attachSignedPhotoURL(ctx context.Context, record *mo
 	}
 
 	record.PhotoURL = signedURL
+}
+
+func calculateWorkedDuration(records []models.TimeRecord, now time.Time) time.Duration {
+	var total time.Duration
+	var currentEntry *time.Time
+	usedTypedEvents := false
+
+	for _, record := range records {
+		eventType := normalizeEventType(record.EventType)
+		recordedAt := record.RecordedAt.UTC()
+
+		switch {
+		case isEntryEventType(eventType):
+			usedTypedEvents = true
+			t := recordedAt
+			currentEntry = &t
+		case isExitEventType(eventType):
+			usedTypedEvents = true
+			if currentEntry != nil && recordedAt.After(*currentEntry) {
+				total += recordedAt.Sub(*currentEntry)
+				currentEntry = nil
+			}
+		}
+	}
+
+	if usedTypedEvents {
+		if currentEntry != nil && now.After(*currentEntry) {
+			total += now.Sub(*currentEntry)
+		}
+		return total
+	}
+
+	for i := 0; i+1 < len(records); i += 2 {
+		start := records[i].RecordedAt.UTC()
+		end := records[i+1].RecordedAt.UTC()
+		if end.After(start) {
+			total += end.Sub(start)
+		}
+	}
+
+	if len(records)%2 == 1 {
+		last := records[len(records)-1].RecordedAt.UTC()
+		if now.After(last) {
+			total += now.Sub(last)
+		}
+	}
+
+	return total
+}
+
+func expectedWorkDuration(date time.Time) time.Duration {
+	_ = date
+	return 8 * time.Hour
+}
+
+func nextEventType(records []models.TimeRecord) string {
+	if len(records) == 0 {
+		return "entrada"
+	}
+
+	lastEvent := normalizeEventType(records[len(records)-1].EventType)
+
+	switch {
+	case isEntryEventType(lastEvent):
+		return "saida"
+	case isExitEventType(lastEvent):
+		return "entrada"
+	default:
+		if len(records)%2 == 0 {
+			return "entrada"
+		}
+		return "saida"
+	}
+}
+
+func durationToHours(duration time.Duration) float64 {
+	return duration.Hours()
+}
+
+func normalizeEventType(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func isEntryEventType(value string) bool {
+	return strings.Contains(value, "entrada")
+}
+
+func isExitEventType(value string) bool {
+	return strings.Contains(value, "saida") || strings.Contains(value, "saída")
 }
