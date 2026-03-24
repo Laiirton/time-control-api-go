@@ -30,13 +30,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if _, err := h.repo.FindByEmail(req.Email); err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "email já cadastrado"})
+		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao processar senha"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process password"})
 		return
 	}
 
@@ -54,13 +54,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	if err := h.repo.Create(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "erro ao criar usuário",
+			"error":   "failed to create user",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "usuário criado com sucesso"})
+	c.JSON(http.StatusCreated, gin.H{"message": "user created successfully"})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -73,21 +73,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	user, err := h.repo.FindByEmail(req.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "credenciais inválidas"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro interno"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "credenciais inválidas"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
 	token, err := h.generateToken(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao gerar token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	userID := c.GetInt64("user_id")
 	user, err := h.repo.FindByID(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 	c.JSON(http.StatusOK, user)

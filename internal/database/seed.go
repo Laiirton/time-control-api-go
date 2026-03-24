@@ -15,19 +15,19 @@ const defaultSeedUserPassword = "Seed@123"
 var firstNames = []string{"Ana", "Bruno", "Carla", "Diego", "Erika", "Felipe", "Gabriela", "Henrique", "Isabela", "Joao", "Karen", "Lucas", "Marina", "Nicolas", "Olivia", "Paulo", "Renata", "Samuel", "Talita", "Vinicius"}
 var lastNames = []string{"Silva", "Souza", "Oliveira", "Costa", "Pereira", "Rodrigues", "Almeida", "Santos", "Lima", "Ferreira"}
 var roles = []string{"employee", "manager", "admin"}
-var departments = []string{"TI", "RH", "Financeiro", "Operacoes", "Comercial"}
-var locations = []string{"Matriz", "Filial-SP", "Filial-RJ", "Remoto"}
-var shifts = []string{"comercial", "manhã", "tarde", "noturno"}
+var departments = []string{"IT", "HR", "Finance", "Operations", "Sales"}
+var locations = []string{"Headquarters", "Branch-SP", "Branch-RJ", "Remote"}
+var shifts = []string{"business", "morning", "afternoon", "night"}
 var userTypes = []string{"internal", "external"}
 
 func SeedUsers(db *sql.DB, count int) (int, error) {
 	if count <= 0 {
-		return 0, fmt.Errorf("a quantidade de usuários deve ser maior que zero")
+		return 0, fmt.Errorf("user count must be greater than zero")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(defaultSeedUserPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return 0, fmt.Errorf("erro ao gerar hash da senha do usuário seed: %w", err)
+		return 0, fmt.Errorf("failed to generate hash for seed user password: %w", err)
 	}
 
 	query := `
@@ -49,7 +49,7 @@ func SeedUsers(db *sql.DB, count int) (int, error) {
 
 	tx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf("erro ao iniciar transação do seed de usuários: %w", err)
+		return 0, fmt.Errorf("failed to begin user seed transaction: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -57,7 +57,7 @@ func SeedUsers(db *sql.DB, count int) (int, error) {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return 0, fmt.Errorf("erro ao preparar statement do seed de usuários: %w", err)
+		return 0, fmt.Errorf("failed to prepare user seed statement: %w", err)
 	}
 	defer stmt.Close()
 
@@ -89,19 +89,19 @@ func SeedUsers(db *sql.DB, count int) (int, error) {
 			shift,
 		)
 		if execErr != nil {
-			return 0, fmt.Errorf("erro ao executar seed de usuários: %w", execErr)
+			return 0, fmt.Errorf("failed to execute user seed: %w", execErr)
 		}
 
 		rowsAffected, rowsErr := result.RowsAffected()
 		if rowsErr != nil {
-			return 0, fmt.Errorf("erro ao verificar resultado do seed de usuários: %w", rowsErr)
+			return 0, fmt.Errorf("failed to check user seed result: %w", rowsErr)
 		}
 
 		inserted += int(rowsAffected)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("erro ao commitar seed de usuários: %w", err)
+		return 0, fmt.Errorf("failed to commit user seed: %w", err)
 	}
 
 	return inserted, nil

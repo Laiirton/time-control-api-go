@@ -46,19 +46,19 @@ func NewSupabaseStorage(baseURL, serviceRoleKey, bucket string) *SupabaseStorage
 
 func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fileHeader *multipart.FileHeader) (string, string, error) {
 	if strings.TrimSpace(s.baseURL) == "" || strings.TrimSpace(s.serviceRoleKey) == "" || strings.TrimSpace(s.bucket) == "" {
-		return "", "", fmt.Errorf("configuração do Supabase Storage incompleta")
+		return "", "", fmt.Errorf("incomplete Supabase Storage configuration")
 	}
 
 	if fileHeader == nil {
-		return "", "", fmt.Errorf("arquivo de foto não enviado")
+		return "", "", fmt.Errorf("photo file not provided")
 	}
 
 	if fileHeader.Size <= 0 {
-		return "", "", fmt.Errorf("arquivo de foto vazio")
+		return "", "", fmt.Errorf("photo file is empty")
 	}
 
 	if fileHeader.Size > maxClockPhotoSizeBytes {
-		return "", "", fmt.Errorf("arquivo excede o limite de 10MB")
+		return "", "", fmt.Errorf("file exceeds the 10MB limit")
 	}
 
 	s.ensureBucketOnce.Do(func() {
@@ -70,7 +70,7 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		return "", "", fmt.Errorf("erro ao abrir arquivo de foto: %w", err)
+		return "", "", fmt.Errorf("failed to open photo file: %w", err)
 	}
 	defer file.Close()
 
@@ -80,7 +80,7 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 	contentType := normalizeContentType(detectedContentType)
 	ext, ok := allowedImageContentTypes[contentType]
 	if !ok {
-		return "", "", fmt.Errorf("formato de foto inválido, use JPEG, PNG ou WEBP")
+		return "", "", fmt.Errorf("invalid photo format, use JPEG, PNG or WEBP")
 	}
 
 	objectPath := s.buildObjectPath(userID, fileHeader.Filename, ext)
@@ -89,7 +89,7 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 	uploadURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, s.bucket, objectPath)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, body)
 	if err != nil {
-		return "", "", fmt.Errorf("erro ao criar requisição de upload: %w", err)
+		return "", "", fmt.Errorf("failed to create upload request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
 	req.Header.Set("apikey", s.serviceRoleKey)
@@ -98,13 +98,13 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("erro ao enviar foto para o storage: %w", err)
+		return "", "", fmt.Errorf("failed to upload photo to storage: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return "", "", fmt.Errorf("falha ao salvar foto no storage (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return "", "", fmt.Errorf("failed to save photo to storage (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
 	objectURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, s.bucket, objectPath)
@@ -114,11 +114,11 @@ func (s *SupabaseStorage) UploadClockPhoto(ctx context.Context, userID int64, fi
 func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath string, expiresInSeconds int) (string, error) {
 	objectPath = strings.TrimSpace(objectPath)
 	if objectPath == "" {
-		return "", fmt.Errorf("caminho do arquivo não informado")
+		return "", fmt.Errorf("file path not provided")
 	}
 
 	if strings.TrimSpace(s.baseURL) == "" || strings.TrimSpace(s.serviceRoleKey) == "" || strings.TrimSpace(s.bucket) == "" {
-		return "", fmt.Errorf("configuração do Supabase Storage incompleta")
+		return "", fmt.Errorf("incomplete Supabase Storage configuration")
 	}
 
 	if expiresInSeconds <= 0 {
@@ -127,13 +127,13 @@ func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath
 
 	payload, err := json.Marshal(map[string]int{"expiresIn": expiresInSeconds})
 	if err != nil {
-		return "", fmt.Errorf("erro ao montar payload de assinatura: %w", err)
+		return "", fmt.Errorf("failed to build signing payload: %w", err)
 	}
 
 	signURL := fmt.Sprintf("%s/storage/v1/object/sign/%s/%s", s.baseURL, s.bucket, objectPath)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, signURL, bytes.NewReader(payload))
 	if err != nil {
-		return "", fmt.Errorf("erro ao criar requisição de assinatura: %w", err)
+		return "", fmt.Errorf("failed to create signing request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
 	req.Header.Set("apikey", s.serviceRoleKey)
@@ -141,13 +141,13 @@ func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("erro ao gerar URL assinada: %w", err)
+		return "", fmt.Errorf("failed to generate signed URL: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("falha ao gerar URL assinada (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return "", fmt.Errorf("failed to generate signed URL (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
 	var signResp struct {
@@ -157,7 +157,7 @@ func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath
 		Token      string `json:"token"`
 	}
 	if err := json.Unmarshal(respBody, &signResp); err != nil {
-		return "", fmt.Errorf("resposta inválida ao gerar URL assinada: %w", err)
+		return "", fmt.Errorf("invalid response when generating signed URL: %w", err)
 	}
 
 	if signed := strings.TrimSpace(signResp.SignedURL); signed != "" {
@@ -172,7 +172,7 @@ func (s *SupabaseStorage) GenerateSignedPhotoURL(ctx context.Context, objectPath
 		return fmt.Sprintf("%s/storage/v1/object/sign/%s/%s?token=%s", s.baseURL, s.bucket, objectPath, signResp.Token), nil
 	}
 
-	return "", fmt.Errorf("resposta sem URL assinada")
+	return "", fmt.Errorf("response without signed URL")
 }
 
 func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
@@ -180,14 +180,14 @@ func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
 
 	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, bucketURL, nil)
 	if err != nil {
-		return fmt.Errorf("erro ao criar requisição para validar bucket: %w", err)
+		return fmt.Errorf("failed to create request to validate bucket: %w", err)
 	}
 	getReq.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
 	getReq.Header.Set("apikey", s.serviceRoleKey)
 
 	getResp, err := s.httpClient.Do(getReq)
 	if err != nil {
-		return fmt.Errorf("erro ao validar bucket no storage: %w", err)
+		return fmt.Errorf("failed to validate bucket in storage: %w", err)
 	}
 	defer getResp.Body.Close()
 
@@ -197,7 +197,7 @@ func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
 
 	if getResp.StatusCode != http.StatusNotFound {
 		respBody, _ := io.ReadAll(io.LimitReader(getResp.Body, 2048))
-		return fmt.Errorf("erro ao consultar bucket (status %d): %s", getResp.StatusCode, strings.TrimSpace(string(respBody)))
+		return fmt.Errorf("failed to query bucket (status %d): %s", getResp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
 	createBody, err := json.Marshal(map[string]interface{}{
@@ -206,13 +206,13 @@ func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
 		"public": false,
 	})
 	if err != nil {
-		return fmt.Errorf("erro ao montar payload para criação do bucket: %w", err)
+		return fmt.Errorf("failed to build bucket creation payload: %w", err)
 	}
 
 	createURL := fmt.Sprintf("%s/storage/v1/bucket", s.baseURL)
 	createReq, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, bytes.NewReader(createBody))
 	if err != nil {
-		return fmt.Errorf("erro ao criar requisição de criação de bucket: %w", err)
+		return fmt.Errorf("failed to create bucket creation request: %w", err)
 	}
 	createReq.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
 	createReq.Header.Set("apikey", s.serviceRoleKey)
@@ -220,13 +220,13 @@ func (s *SupabaseStorage) ensureBucket(ctx context.Context) error {
 
 	createResp, err := s.httpClient.Do(createReq)
 	if err != nil {
-		return fmt.Errorf("erro ao criar bucket no storage: %w", err)
+		return fmt.Errorf("failed to create bucket in storage: %w", err)
 	}
 	defer createResp.Body.Close()
 
 	if createResp.StatusCode < 200 || createResp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(createResp.Body, 2048))
-		return fmt.Errorf("erro ao criar bucket (status %d): %s", createResp.StatusCode, strings.TrimSpace(string(respBody)))
+		return fmt.Errorf("failed to create bucket (status %d): %s", createResp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
 	return nil

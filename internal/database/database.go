@@ -20,17 +20,17 @@ var migrationsFS embed.FS
 
 func Connect(dbURL string) (*sql.DB, error) {
 	if strings.TrimSpace(dbURL) == "" {
-		return nil, fmt.Errorf("URL do banco não informada (use DATABASE_URL_POOLER)")
+		return nil, fmt.Errorf("database URL not provided (use DATABASE_URL_POOLER)")
 	}
 
 	dbURL, err := ensureSSLMode(dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao normalizar URL do banco: %w", err)
+		return nil, fmt.Errorf("failed to normalize database URL: %w", err)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao abrir conexão: %w", err)
+		return nil, fmt.Errorf("failed to open connection: %w", err)
 	}
 
 	db.SetMaxOpenConns(25)
@@ -52,7 +52,7 @@ func Connect(dbURL string) (*sql.DB, error) {
 	}
 
 	_ = db.Close()
-	return nil, fmt.Errorf("erro ao conectar ao banco após múltiplas tentativas: %w", err)
+	return nil, fmt.Errorf("failed to connect to database after multiple attempts: %w", err)
 }
 
 func ensureSSLMode(dbURL string) (string, error) {

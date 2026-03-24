@@ -9,24 +9,24 @@ import (
 )
 
 func main() {
-	count := flag.Int("count", 10, "quantidade de usuários aleatórios para criar")
+	count := flag.Int("count", 10, "number of random users to create")
 	flag.Parse()
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Erro ao carregar configuração: ", err)
+		log.Fatal("Failed to load configuration: ", err)
 	}
 
 	db, err := database.Connect(cfg.DBURL)
 	if err != nil {
-		log.Fatal("Erro ao conectar ao banco de dados: ", err)
+		log.Fatal("Failed to connect to database: ", err)
 	}
 	defer db.Close()
 
 	inserted, err := database.SeedUsers(db, *count)
 	if err != nil {
-		log.Fatal("Erro ao executar seeder de usuários: ", err)
+		log.Fatal("Failed to run user seeder: ", err)
 	}
 
-	log.Printf("Seeder de usuários executado com sucesso. Usuários inseridos: %d", inserted)
+	log.Printf("User seeder executed successfully. Users inserted: %d", inserted)
 }
